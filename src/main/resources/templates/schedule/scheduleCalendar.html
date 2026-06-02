@@ -386,6 +386,11 @@
         document.getElementById('detailModalOverlay').addEventListener('click', function(e) {
             if (e.target === this) closeDetailModal();
         });
+
+        document.getElementById('formModalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeFormModal();
+        });
+
         document.getElementById('repeatDeleteModalOverlay').addEventListener('click', function(e) {
             if (e.target === this) closeRepeatDeleteModal();
         });
@@ -578,8 +583,18 @@
                        sd.getDate() === item.cell.day;
             });
             daySingles.forEach(function(s) {
+                // placeholder 슬롯이 있으면 거기에 끼워넣기, 없으면 append
+                var slot = 0;
+                while (slot < item.slotContainer.children.length &&
+                       !item.slotContainer.children[slot].classList.contains('cal-badge-placeholder')) {
+                    slot++;
+                }
                 var badge = createBadge(s);
-                item.slotContainer.appendChild(badge);
+                if (slot < item.slotContainer.children.length) {
+                    ensureSlot(item.slotContainer, slot, badge);
+                } else {
+                    item.slotContainer.appendChild(badge);
+                }
             });
         });
 
