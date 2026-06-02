@@ -19,21 +19,15 @@ public class AdminBoardRsDTO {
     // 카테고리 리스트 포함
     private List<CategoryDto> categories;
 
-    private Long visiblePostCount;
-    private Long hiddenPostCount;
-
     private boolean system;
 
-    public static AdminBoardRsDTO from(Board board, List<CategoryDto> categories,
-                                       Long visiblePostCount, Long hiddenPostCount) {
+    public static AdminBoardRsDTO from(Board board, List<CategoryDto> categories) {
         return AdminBoardRsDTO.builder()
                 .id(board.getId())
                 .name(board.getName())
                 .code(board.getCode())
                 .boardType(board.getBoardType())
                 .categories(categories)
-                .visiblePostCount(visiblePostCount)
-                .hiddenPostCount(hiddenPostCount)
                 .system(board.isSystem())
                 .build();
     }
@@ -43,8 +37,7 @@ public class AdminBoardRsDTO {
         private Long id;
         private String name;
         private String code;
-        private String bgColor;
-        private String textColor;
+        private String color;
         private long postCount; // 삭제 가능 여부 판단용
         private boolean system;
 
@@ -53,8 +46,7 @@ public class AdminBoardRsDTO {
                     .id(category.getId())
                     .name(category.getName())
                     .code(category.getCode())
-                    .bgColor(category.getBgColor())
-                    .textColor(category.getTextColor())
+                    .color(category.getColor())
                     .postCount(postCount)
                     .system(category.isSystem())
                     .build();
