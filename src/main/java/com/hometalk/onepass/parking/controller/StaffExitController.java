@@ -62,7 +62,6 @@ public class StaffExitController {
     // POST /staff/exit/notify
     @PostMapping("/notify")
     public ResponseEntity<Void> sendNotification(@RequestBody ExitRequest request) {
-        // TODO: 알림 담당자 코드 연동 후 구현
         return ResponseEntity.ok().build();
     }
 }

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<div th:fragment="categoryItem" class="category-item-wrapper border p-3 mb-2 rounded bg-white">
+
+  <div class="d-flex gap-2 mb-2">
+    <input type="text" name="categoryNames" class="form-control" placeholder="이름 (예: 자유)" required>
+    <input type="text"
+           name="categoryCodes"
+           placeholder="영문명 (예: free)"
+           pattern="[a-zA-Z0-9_-]+"
+           title="영문, 숫자, -, _ 만 입력 가능합니다."
+           required>
+    <button type="button" class="btn-remove btn btn-outline-danger">×</button>
+  </div>
+
+  <div class="color-preset-section">
+    <label class="small text-muted d-block mb-1" style="margin-bottom: 10px;">테마 선택 (배경 | 글자)</label>
+    <div class="category-input-row">
+      <!-- 13가지 프리셋 루프 (또는 직접 나열) -->
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#D9F1FF |#3A7CA5" checked>
+        <span class="preset-dot" style="background: linear-gradient(135deg, #D9F1FF  50%, #3A7CA5 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#DDF7EA |#2E8B6D">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #DDF7EA  50%, #2E8B6D 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#FFE3D6|#D96C4A">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #FFE3D6 50%, #D96C4A 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#E8D9FF|#7A5AC7">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #E8D9FF 50%, #7A5AC7 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#FFF3BF |#C79A00">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #FFF3BF  50%, #C79A00 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#FFDCE8 |#D45A84">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #FFDCE8  50%, #D45A84 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#D8F7F3 |#2F8F89">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #D8F7F3  50%, #2F8F89 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#E5F2D8 |#6A994E">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #E5F2D8  50%, #6A994E 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#FFE8CC|#D17B49">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #FFE8CC 50%, #D17B49 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#DCE4FF|#5B6ED6">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #DCE4FF 50%, #5B6ED6 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#E8D7CE|#8B5E4A">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #E8D7CE 50%, #8B5E4A 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#FFE5F1|#C75C8A">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #FFE5F1 50%, #C75C8A 50%);"></span>
+      </label>
+      <label class="preset-label">
+        <input type="radio" th:name="'categoryTheme' + ${itemIdx}" value="#EEF1F5|#6B7280">
+        <span class="preset-dot" style="background: linear-gradient(135deg, #EEF1F5 50%, #6B7280 50%);"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+</html>

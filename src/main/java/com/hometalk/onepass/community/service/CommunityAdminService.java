@@ -6,8 +6,10 @@ import com.hometalk.onepass.community.dto.response.PostResponseDTO;
 import com.hometalk.onepass.community.entity.Board;
 import com.hometalk.onepass.community.entity.Category;
 import com.hometalk.onepass.community.entity.Post;
+import com.hometalk.onepass.community.enums.BoardType;
 import com.hometalk.onepass.community.enums.PostStatus;
 import com.hometalk.onepass.community.exception.CategoryNotFoundException;
+import com.hometalk.onepass.community.exception.InvalidBoardCodeException;
 import com.hometalk.onepass.community.repository.BoardRepository;
 import com.hometalk.onepass.community.repository.CategoryRepository;
 import com.hometalk.onepass.community.repository.PostRepository;
@@ -32,11 +34,10 @@ public class CommunityAdminService {
     // 게시판 & 카테고리 전체 목록 조회 (관리자 메인용)
     @Transactional(readOnly = true)
     public List<AdminBoardRsDTO> getAdminBoardList() {
-        return boardRepository.findAll().stream()
+        return boardRepository.findAllWithCategories().stream()
                 .map(board -> {
-                    // 각 게시판에 속한 카테고리들을 DTO로 변환
+                    // 각 게시판 카테고리 목록
                     List<AdminBoardRsDTO.CategoryDto> categories = board.getCategories().stream()
-                            .filter(cat -> !cat.getCode().equals("all"))
                             .map(cat -> {
                                 // 각 카테고리별 게시글 개수 카운트
                                 long postCount = postRepository.countByCategoryId(cat.getId());
@@ -44,8 +45,13 @@ public class CommunityAdminService {
                             })
                             .collect(Collectors.toList());
 
+                    // 게시판별 노출 게시글 수
+                    long visibleCount = postRepository.countByBoardAndPostStatus(board, PostStatus.ACTIVE);
+                    // 게시판별 숨김/삭제 게시글 수
+                    long hiddenCount = postRepository.countByBoardAndPostStatusIn(board, List.of(PostStatus.HIDDEN, PostStatus.DELETED));
+
                     // 게시판 정보와 카테고리 리스트를 합쳐서 반환
-                    return AdminBoardRsDTO.from(board, categories);
+                    return AdminBoardRsDTO.from(board, categories, visibleCount, hiddenCount);
                 })
                 .collect(Collectors.toList());
     }
@@ -64,21 +70,22 @@ public class CommunityAdminService {
         Board board = Board.builder()
                 .name(dto.getBoardName())
                 .code(code)
+                .boardType(dto.getBoardType() != null ? dto.getBoardType() : BoardType.LIST)
                 .system(false)
                 .build();
         boardRepository.save(board);
-
-        // 기본 '전체' 카테고리 자동 생성
-        createDefaultCategory(board);
 
         // 추가 카테고리들이 있다면 생성
         if (dto.getCategoryNames() != null && dto.getCategoryCodes() != null) {
             for (int i = 0; i < dto.getCategoryNames().size(); i++) {
                 String catName = dto.getCategoryNames().get(i);
                 String catCode = dto.getCategoryCodes().get(i);
-                String color = (dto.getCategoryColors() != null && dto.getCategoryColors().size() > i)
-                        ? dto.getCategoryColors().get(i) : "#888888";
-                createCustomCategory(board, catName, catCode, color);
+                String bgColor = (dto.getCategoryBgColors() != null && dto.getCategoryBgColors().size() > i)
+                        ? dto.getCategoryBgColors().get(i) : "#003366"; // 기본값 딥블루
+
+                String textColor = (dto.getCategoryTextColors() != null && dto.getCategoryTextColors().size() > i)
+                        ? dto.getCategoryTextColors().get(i) : "#FFFFFF"; // 기본값 화이트
+                createCustomCategory(board, catName, catCode, bgColor, textColor);
             }
         }
     }
@@ -86,7 +93,7 @@ public class CommunityAdminService {
     @Transactional
     public void deleteBoard(Long boardId) {
         Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시판입니다."));
+                .orElseThrow(() -> new InvalidBoardCodeException(String.valueOf(boardId)));
         long totalPostCount = postRepository.countAllByBoardIdNative(boardId);
         if (totalPostCount > 0) {
             throw new IllegalStateException("이 게시판에 아직 삭제되지 않은 데이터(유령 게시글 등)가 "
@@ -98,15 +105,23 @@ public class CommunityAdminService {
 
     // --- [2. 카테고리 관리] ---
     @Transactional
-    public void updateCategory(Long categoryId, String newName) {
+    public void updateCategory(Long categoryId, String newName,
+                               String bgColor, String textColor) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CategoryNotFoundException(categoryId, "ADMIN"));
-
         if (category.isSystem()) {
             throw new IllegalStateException("시스템 기본 카테고리는 이름을 수정할 수 없습니다.");
         }
 
-        category.rename(newName);
+        String finalBgColor = (bgColor != null && !bgColor.isBlank())
+                ? bgColor
+                : category.getBgColor();
+
+        String finalTextColor = (textColor != null && !textColor.isBlank())
+                ? textColor
+                : category.getTextColor();
+
+        category.rename(newName, finalBgColor, finalTextColor);
     }
 
     @Transactional
@@ -142,7 +157,7 @@ public class CommunityAdminService {
         // 현재 시간으로부터 30일 전 시점 계산
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         // 1. 30일이 지난 DELETED 상태의 게시글 조회
-        List<Post> targets = postRepository.findOldDeletedPosts(PostStatus.DELETED.name(), thirtyDaysAgo);
+        List<Post> targets = postRepository.findOldDeletedPosts(PostStatus.DELETED, thirtyDaysAgo);
 
         if (!targets.isEmpty()) {
             for (Post post : targets) {
@@ -161,8 +176,9 @@ public class CommunityAdminService {
     @Transactional
     public void hardDeletePost(Long postId) {
         // DB에서 실제 레코드를 삭제 (FK 제약 조건을 풀기 위한 작업)
-        postRepository.hardDeleteCommentsByPostId(postId);
-        postRepository.hardDeletePostById(postId);
+        postRepository.hardDeletePostTagsByPostId(postId);  // 태그 관계 삭제
+        postRepository.hardDeleteCommentsByPostId(postId);  // 댓글 삭제
+        postRepository.hardDeletePostById(postId);          // 게시글 삭제
         log.info("관리자 권한으로 게시글 영구 삭제 완료: ID {}", postId);
     }
     // 일괄 처리
@@ -174,45 +190,28 @@ public class CommunityAdminService {
         }
     }
 
-    // --- [내부 헬퍼 메서드] ---
-    private void createDefaultCategory(Board board) {
-        categoryRepository.save(Category.builder()
-                .name("전체").code("all").system(true).board(board).build());
-    }
-
-    private void createCustomCategory(Board board, String name, String code, String color) {
+    private void createCustomCategory(Board board, String name, String code,
+                                      String bgColor, String textColor) {
+        if ("all".equalsIgnoreCase(code)) {
+            throw new IllegalStateException("'all'은 전체 목록 URL 예약어라 카테고리 코드로 사용할 수 없습니다.");
+        }
         if (categoryRepository.existsByCodeAndBoardId(code, board.getId())) {
             throw new IllegalStateException("해당 게시판 내에 중복된 카테고리 코드가 있습니다: " + code);
         }
         categoryRepository.save(Category.builder()
                 .name(name)
                 .code(code)
-                .color(color)
+                .bgColor(bgColor)
+                .textColor(textColor)
                 .system(false)
                 .board(board)
                 .build());
     }
 
-//    private String generateBoardCode(String name) {
-//        String englishOnly = name.replaceAll("[^a-zA-Z0-9]", "");
-//        if (englishOnly.isEmpty()) {
-//            englishOnly = "board";
-//        }
-//        return englishOnly.toLowerCase() + "_" + (System.nanoTime() % 100000);
-//    }
-//
-//    private String generateCategoryCode(String name) {
-//        String englishOnly = name.replaceAll("[^a-zA-Z0-9]", "");
-//        if (englishOnly.isEmpty()) {
-//            englishOnly = "cat";
-//        }
-//        return englishOnly.toLowerCase() + "_" + (System.nanoTime() % 100000);
-//    }
-
     @Transactional(readOnly = true)
     public AdminBoardRsDTO getAdminBoardDetail(Long id) {
         Board board = boardRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시판입니다."));
+                .orElseThrow(() -> new InvalidBoardCodeException(String.valueOf(id)));
 
         List<AdminBoardRsDTO.CategoryDto> categories = board.getCategories().stream()
                 .map(cat -> {
@@ -220,18 +219,21 @@ public class CommunityAdminService {
                     return AdminBoardRsDTO.CategoryDto.from(cat, postCount);
                 })
                 .collect(Collectors.toList());
+        // 노출 게시글 수
+        long visibleCount = postRepository.countByBoardAndPostStatus(board, PostStatus.ACTIVE);
+        // 숨김/삭제 게시글 수
+        long hiddenCount = postRepository.countByBoardAndPostStatusIn(board, List.of(PostStatus.HIDDEN, PostStatus.DELETED));
 
-        return AdminBoardRsDTO.from(board, categories);
+        return AdminBoardRsDTO.from(board, categories, visibleCount, hiddenCount);
     }
 
     @Transactional
-    public void addCategory(Long boardId, String name, String code, String color) {
+    public void addCategory(Long boardId, String name, String code,
+                            String bgColor, String textColor) {
         // 1. 게시판 존재 여부 확인
         Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 게시판입니다. id=" + boardId));
-        long customCategoryCount = board.getCategories().stream()
-                .filter(c -> !c.getCode().equals("all"))
-                .count();
+                .orElseThrow(() -> new InvalidBoardCodeException(String.valueOf(boardId)));
+        long customCategoryCount = board.getCategories().stream().count();
         if (customCategoryCount >= 5) {
             throw new IllegalStateException("추가 카테고리는 게시판당 최대 5개까지만 생성 가능합니다.");
         }
@@ -244,12 +246,21 @@ public class CommunityAdminService {
 
         // 3. 카테고리 엔티티 생성 및 연관관계 설정
         Category category = Category.builder()
-                .name(name).code(code).color(color)
+                .name(name).code(code)
+                .bgColor(bgColor).textColor(textColor)
                 .board(board)  // 부모 게시판 설정
                 .system(false) // 사용자가 추가하는 건 시스템 카테고리가 아님
                 .build();
 
         // 4. 저장
         categoryRepository.save(category);
+    }
+
+    @Transactional
+    public void updateBoardType(Long boardId, BoardType boardType) {
+        Board board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new InvalidBoardCodeException(String.valueOf(boardId)));
+
+        board.changeBoardType(boardType);
     }
 }

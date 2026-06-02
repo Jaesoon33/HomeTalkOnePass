@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,6 +27,10 @@ public class ParkingLog extends BaseSoftDeleteEntity {
 
     @Column(name = "vehicle_number", nullable = false, length = 20)
     private String vehicleNumber;
+
+    // 4번 수정 - Generated Column (DB에서 자동 계산, 읽기 전용)
+    @Column(name = "vehicle_number_last4", insertable = false, updatable = false, length = 4)
+    private String vehicleNumberLast4;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "household_id")
@@ -120,6 +125,14 @@ public class ParkingLog extends BaseSoftDeleteEntity {
         this.household = household;
     }
 
+    // ─── 세대 해제 ───────────────────────────────────────────────
+    public void unmatchHousehold() {
+        if (this.entryType != EntryType.MANUAL) {
+            throw new IllegalStateException("수동 입차 차량만 세대 해제할 수 있습니다.");
+        }
+        this.household = null;
+    }
+
     public enum EntryType {
         NORMAL, RESERVATION, MANUAL
     }
@@ -128,11 +141,29 @@ public class ParkingLog extends BaseSoftDeleteEntity {
         PARKED, EXITED, OVERSTAY
     }
 
-    // ─── 티켓 적용 시간 업데이트
+    // ─── 티켓 적용 시간 업데이트 ─────────────────────────────────
     public void updateAppliedMinutes(int appliedMinutes) {
         if (appliedMinutes < 0) {
             throw new IllegalArgumentException("티켓 적용 시간은 0 이상이어야 합니다.");
         }
         this.appliedMinutes = appliedMinutes;
+    }
+
+    // ─── 출차 취소 ───────────────────────────────────────────────
+    public void cancelExit() {
+        if (this.status == ParkingStatus.PARKED) {
+            throw new IllegalStateException("아직 출차되지 않은 차량입니다.");
+        }
+        if (this.exitTime == null) {
+            throw new IllegalStateException("출차 기록이 없습니다.");
+        }
+        if (!this.exitTime.toLocalDate().equals(LocalDate.now())) {
+            throw new IllegalStateException("당일 출차 건만 취소할 수 있습니다.");
+        }
+
+        this.exitTime = null;
+        this.totalMinutes = null;
+        this.status = ParkingStatus.PARKED;
+        // appliedMinutes는 유지
     }
 }

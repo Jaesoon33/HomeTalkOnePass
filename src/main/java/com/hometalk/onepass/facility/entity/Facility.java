@@ -19,6 +19,10 @@ public class Facility {
     private String iconType;    // 디자인 가이드 아이콘
     private String imagePath;   // 시설 전경 사진
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private BookingStatus status;
+
     @Embedded
     private OperationTime operationTime; // LocalTime 기반 운영 시간
 

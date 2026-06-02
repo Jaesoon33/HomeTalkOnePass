@@ -4,6 +4,9 @@ server:
   port: 8090                # 포트 번호 명시 (사용 중인 포트로 확인)
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: onepass
 
@@ -31,3 +34,18 @@ spring:
       max-file-size: 10MB   # 파일 업로드 용량 제한 설정
       max-request-size: 10MB
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL_VERIFY_ID}
+    password: ${EMAIL_VERIFY_PW}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  mail:
+    from: ${MAIL_FROM:${spring.mail.username}}

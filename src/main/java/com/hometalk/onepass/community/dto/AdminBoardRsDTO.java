@@ -2,6 +2,7 @@ package com.hometalk.onepass.community.dto;
 
 import com.hometalk.onepass.community.entity.Board;
 import com.hometalk.onepass.community.entity.Category;
+import com.hometalk.onepass.community.enums.BoardType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -13,6 +14,8 @@ public class AdminBoardRsDTO {
     private Long id;
     private String name;
     private String code;
+    private BoardType boardType;
+
     // 카테고리 리스트 포함
     private List<CategoryDto> categories;
 
@@ -23,6 +26,7 @@ public class AdminBoardRsDTO {
                 .id(board.getId())
                 .name(board.getName())
                 .code(board.getCode())
+                .boardType(board.getBoardType())
                 .categories(categories)
                 .system(board.isSystem())
                 .build();
